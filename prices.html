@@ -298,7 +298,7 @@
     try {
       const result = await ghPutJson(
         cfg,
-        "data/prices.json",
+        "prices.json",
         prices,
         "価格情報の更新",
         pricesSha
@@ -365,11 +365,11 @@
 
     const statusEl = document.getElementById("status");
     try {
-      const { data: itemsData } = await ghGetJson(cfg, "data/items.json");
+      const { data: itemsData } = await ghGetJson(cfg, "items.json");
       items = itemsData.items || [];
       itemsById = Object.fromEntries(items.map((it) => [it.id, it]));
 
-      const { data: pricesData, sha } = await ghGetJsonOrNull(cfg, "data/prices.json");
+      const { data: pricesData, sha } = await ghGetJsonOrNull(cfg, "prices.json");
       prices = pricesData || {};
       pricesSha = sha;
 

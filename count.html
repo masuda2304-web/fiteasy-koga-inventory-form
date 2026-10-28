@@ -93,8 +93,8 @@
     const listEl = document.getElementById("list");
     try {
       const [{ data: itemsData }, { data: staffData }] = await Promise.all([
-        ghGetJson(cfg, "data/items.json"),
-        ghGetJson(cfg, "data/staff.json"),
+        ghGetJson(cfg, "items.json"),
+        ghGetJson(cfg, "staff.json"),
       ]);
 
       items = itemsData.items || [];
@@ -142,7 +142,7 @@
     try {
       await ghCreateJson(
         cfg,
-        `data/counts/${fileName}`,
+        `counts/${fileName}`,
         body,
         `在庫個数入力 ${date} ${time} (${staff})`
       );

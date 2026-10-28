@@ -83,7 +83,7 @@
     }
     showMsg("接続確認中...", "warn");
     try {
-      const { data } = await ghGetJson({ owner, repo, token }, "data/items.json");
+      const { data } = await ghGetJson({ owner, repo, token }, "items.json");
       const count = (data.items || []).length;
       showMsg(`接続に成功しました。品目数: ${count}件`, "ok");
     } catch (e) {

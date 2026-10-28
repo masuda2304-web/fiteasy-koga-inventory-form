@@ -125,13 +125,13 @@
       return;
     }
     try {
-      const { data: itemsData } = await ghGetJson(cfg, "data/items.json");
+      const { data: itemsData } = await ghGetJson(cfg, "items.json");
       document.getElementById("stat-items").textContent = (itemsData.items || []).length + "件";
     } catch (e) {
       document.getElementById("stat-items").textContent = "-";
     }
     try {
-      const files = await ghListDir(cfg, "data/counts");
+      const files = await ghListDir(cfg, "counts");
       const today = todayDateStr();
       const count = files.filter((f) => f.name.startsWith(today)).length;
       document.getElementById("stat-today").textContent = count + " / 2";

@@ -173,11 +173,11 @@
 
     const statusEl = document.getElementById("status");
     try {
-      const { data: itemsData } = await ghGetJson(cfg, "data/items.json");
+      const { data: itemsData } = await ghGetJson(cfg, "items.json");
       items = itemsData.items || [];
       itemsById = Object.fromEntries(items.map((it) => [it.id, it]));
 
-      const files = await ghListDir(cfg, "data/counts");
+      const files = await ghListDir(cfg, "counts");
       const jsonFiles = files.filter((f) => f.name.endsWith(".json"));
       jsonFiles.sort((a, b) => (a.name < b.name ? 1 : -1)); // ファイル名=日時順なので新しい順に
 
@@ -186,7 +186,7 @@
       let loaded = 0;
       for (const f of targets) {
         statusEl.textContent = `読み込み中... (${loaded + 1}/${targets.length})`;
-        const { data } = await ghGetJson(cfg, `data/counts/${f.name}`);
+        const { data } = await ghGetJson(cfg, `counts/${f.name}`);
         const counts = data.counts || {};
         Object.keys(counts).forEach((itemId) => {
           if (!historyByItem[itemId]) historyByItem[itemId] = [];
