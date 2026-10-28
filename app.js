@@ -1,18 +1,20 @@
 /* フィットイージー古河店 備品在庫管理システム 共通処理(フロントエンド) */
 
 // ---- GitHub接続設定(localStorageに保存) ----
+// 古河店サイト専用のキー名を使用(西浦和店サイトと同じドメイン[github.io]上にあるため、
+// 同じキー名だと同一ブラウザで設定が共有されてしまう問題を避けるため)
 function getConfig() {
-  const owner = localStorage.getItem("gh_owner");
-  const repo = localStorage.getItem("gh_repo");
-  const token = localStorage.getItem("gh_token");
+  const owner = localStorage.getItem("koga_gh_owner");
+  const repo = localStorage.getItem("koga_gh_repo");
+  const token = localStorage.getItem("koga_gh_token");
   if (!owner || !repo || !token) return null;
   return { owner, repo, token };
 }
 
 function saveConfig(owner, repo, token) {
-  localStorage.setItem("gh_owner", owner);
-  localStorage.setItem("gh_repo", repo);
-  localStorage.setItem("gh_token", token);
+  localStorage.setItem("koga_gh_owner", owner);
+  localStorage.setItem("koga_gh_repo", repo);
+  localStorage.setItem("koga_gh_token", token);
 }
 
 function requireConfigOrRedirect() {
