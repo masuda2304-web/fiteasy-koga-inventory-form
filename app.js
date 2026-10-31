@@ -176,7 +176,7 @@ function mountStatusBar() {
   const bar = document.createElement("div");
   bar.className = "statusbar";
   bar.innerHTML =
-    '<span class="status-left"><span class="status-dot"></span>SYSTEM ONLINE</span>' +
+    '<span class="status-left"><span class="status-dot"></span>オンライン</span>' +
     '<span class="status-clock" id="statusbar-clock">--:--:--</span>';
   header.insertBefore(bar, header.firstChild);
 
