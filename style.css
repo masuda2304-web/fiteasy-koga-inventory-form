@@ -374,6 +374,35 @@ label {
   border-color: #b8e8cb;
 }
 
+/* ---- 入力頻度タブ(毎日/毎週/毎月) ---- */
+.freq-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+}
+
+.freq-tab {
+  flex: 1;
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.freq-tab:hover { border-color: var(--accent); }
+
+.freq-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* ---- 在庫入力リスト ---- */
 .shelf-title {
   font-family: var(--display);

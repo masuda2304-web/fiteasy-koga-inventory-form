@@ -12,6 +12,12 @@
 <main>
   <a class="back no-print" href="index.html">← メニューに戻る</a>
 
+  <div class="card freq-tabs" id="freq-tabs">
+    <button type="button" class="freq-tab active" data-freq="daily">毎日チェック</button>
+    <button type="button" class="freq-tab" data-freq="weekly">毎週チェック</button>
+    <button type="button" class="freq-tab" data-freq="monthly">毎月チェック</button>
+  </div>
+
   <div id="time-notice"></div>
 
   <div class="card">
@@ -29,13 +35,19 @@
 <script>
   let cfg;
   let items = [];
+  let currentFreq = "daily";
+  const FREQ_LABEL = { daily: "毎日", weekly: "毎週", monthly: "毎月" };
 
   function checkTimeWindow() {
+    const el = document.getElementById("time-notice");
+    if (currentFreq !== "daily") {
+      el.innerHTML = "";
+      return;
+    }
     const m = nowMinutesOfDay();
     const inWindow =
       (m >= 12 * 60 + 30 && m <= 13 * 60) ||
       (m >= 18 * 60 + 30 && m <= 19 * 60 + 30);
-    const el = document.getElementById("time-notice");
     if (!inWindow) {
       el.innerHTML =
         '<div class="notice warn">現在は通常の入力時間(12:30〜13:00 / 18:30〜19:30)の外です。入力はできますが、できるだけこの時間内の登録にご協力ください。</div>';
@@ -58,8 +70,15 @@
 
   function renderItems() {
     const listEl = document.getElementById("list");
+    const visible = items.filter((it) => (it.frequency || "daily") === currentFreq);
+
+    if (visible.length === 0) {
+      listEl.innerHTML = `<p style="color:var(--muted)">「${FREQ_LABEL[currentFreq]}チェック」に設定されている品目はまだありません。</p>`;
+      return;
+    }
+
     const shelves = {};
-    items.forEach((it) => {
+    visible.forEach((it) => {
       const shelf = it.shelf || "その他";
       if (!shelves[shelf]) shelves[shelf] = [];
       shelves[shelf].push(it);
@@ -83,9 +102,23 @@
     });
   }
 
+  function switchFreq(freq) {
+    currentFreq = freq;
+    document.querySelectorAll(".freq-tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.freq === freq);
+    });
+    document.getElementById("msg").innerHTML = "";
+    renderItems();
+    checkTimeWindow();
+  }
+
   async function init() {
     cfg = requireConfigOrRedirect();
     if (!cfg) return;
+
+    document.querySelectorAll(".freq-tab").forEach((btn) => {
+      btn.addEventListener("click", () => switchFreq(btn.dataset.freq));
+    });
 
     checkTimeWindow();
     setInterval(checkTimeWindow, 60000);
@@ -117,9 +150,15 @@
       return;
     }
 
+    const inputs = document.querySelectorAll("#list input[type=number]");
+    if (inputs.length === 0) {
+      msgEl.innerHTML = `<div class="notice error">「${FREQ_LABEL[currentFreq]}チェック」に設定されている品目がないため、登録できません。</div>`;
+      return;
+    }
+
     const counts = {};
     let missing = false;
-    document.querySelectorAll("#list input[type=number]").forEach((input) => {
+    inputs.forEach((input) => {
       const id = input.dataset.id;
       if (input.value === "") {
         missing = true;
@@ -136,7 +175,7 @@
     const date = todayDateStr();
     const time = nowTimeStr();
     const fileName = `${date}_${time.replace(":", "")}_${randSuffix()}.json`;
-    const body = { date, time, staff, counts };
+    const body = { date, time, staff, frequency: currentFreq, counts };
 
     msgEl.innerHTML = '<div class="notice warn">送信中...</div>';
     try {
@@ -144,10 +183,9 @@
         cfg,
         `counts/${fileName}`,
         body,
-        `在庫個数入力 ${date} ${time} (${staff})`
+        `在庫個数入力(${FREQ_LABEL[currentFreq]}) ${date} ${time} (${staff})`
       );
-      msgEl.innerHTML =
-        '<div class="notice ok">登録しました。最低在庫を下回った品目や、前回から大きく個数が変わった品目があれば、まもなく店長のChatworkに通知されます。</div>';
+      msgEl.innerHTML = `<div class="notice ok">「${FREQ_LABEL[currentFreq]}チェック」分を登録しました。最低在庫を下回った品目や、前回から大きく個数が変わった品目があれば、まもなく店長のChatworkに通知されます。</div>`;
     } catch (e) {
       msgEl.innerHTML = `<div class="notice error">送信に失敗しました: ${e.message}</div>`;
     }
