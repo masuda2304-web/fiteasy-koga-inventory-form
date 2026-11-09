@@ -38,22 +38,47 @@
   let currentFreq = "daily";
   const FREQ_LABEL = { daily: "毎日", weekly: "毎週", monthly: "毎月" };
 
-  function checkTimeWindow() {
+  function isFridayJst(d) {
+    return d.getDay() === 5;
+  }
+
+  function isLastFridayOfMonthJst(d) {
+    if (!isFridayJst(d)) return false;
+    const next = new Date(d);
+    next.setDate(d.getDate() + 7);
+    return next.getMonth() !== d.getMonth();
+  }
+
+  function updateFreqNotice() {
     const el = document.getElementById("time-notice");
-    if (currentFreq !== "daily") {
-      el.innerHTML = "";
+    const d = nowJstDate();
+
+    if (currentFreq === "daily") {
+      const m = nowMinutesOfDay();
+      const inWindow =
+        (m >= 12 * 60 + 30 && m <= 13 * 60) ||
+        (m >= 18 * 60 + 30 && m <= 19 * 60 + 30);
+      el.innerHTML = inWindow
+        ? ""
+        : '<div class="notice warn">毎日チェックは12:30〜13:00 または 18:30〜19:30 のいずれかの実施を推奨しています(1日1回)。時間外でも入力は可能です。</div>';
       return;
     }
-    const m = nowMinutesOfDay();
-    const inWindow =
-      (m >= 12 * 60 + 30 && m <= 13 * 60) ||
-      (m >= 18 * 60 + 30 && m <= 19 * 60 + 30);
-    if (!inWindow) {
-      el.innerHTML =
-        '<div class="notice warn">現在は通常の入力時間(12:30〜13:00 / 18:30〜19:30)の外です。入力はできますが、できるだけこの時間内の登録にご協力ください。</div>';
-    } else {
-      el.innerHTML = "";
+
+    if (currentFreq === "weekly") {
+      el.innerHTML = isFridayJst(d)
+        ? '<div class="notice ok">本日は毎週チェックの推奨日(金曜日)です。</div>'
+        : '<div class="notice warn">毎週チェックは毎週金曜日の実施を推奨しています。今日は金曜日ではありませんが、入力は可能です。</div>';
+      return;
     }
+
+    if (currentFreq === "monthly") {
+      el.innerHTML = isLastFridayOfMonthJst(d)
+        ? '<div class="notice ok">本日は毎月チェックの推奨日(月末最終金曜日)です。</div>'
+        : '<div class="notice warn">毎月チェックは月末最終金曜日の実施を推奨しています。今日はその日ではありませんが、入力は可能です。</div>';
+      return;
+    }
+
+    el.innerHTML = "";
   }
 
   function onQtyInput(e) {
@@ -109,7 +134,7 @@
     });
     document.getElementById("msg").innerHTML = "";
     renderItems();
-    checkTimeWindow();
+    updateFreqNotice();
   }
 
   async function init() {
@@ -120,8 +145,8 @@
       btn.addEventListener("click", () => switchFreq(btn.dataset.freq));
     });
 
-    checkTimeWindow();
-    setInterval(checkTimeWindow, 60000);
+    updateFreqNotice();
+    setInterval(updateFreqNotice, 60000);
 
     const listEl = document.getElementById("list");
     try {

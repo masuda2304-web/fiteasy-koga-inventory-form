@@ -17,7 +17,7 @@
         <div class="stat-value" id="stat-items">--</div>
       </div>
       <div class="stat-tile">
-        <div class="stat-label">本日の入力回数 (2回/日)</div>
+        <div class="stat-label">本日の毎日チェック (1回/日推奨)</div>
         <div class="stat-value" id="stat-today">--</div>
       </div>
       <div class="stat-tile">
@@ -41,7 +41,7 @@
     </span>
     <span class="nav-text">
       <strong>在庫個数を入力する</strong>
-      <span class="nav-sub">毎日12:30〜13:00 / 18:30〜19:30 に実施</span>
+      <span class="nav-sub">毎日1回(12:30〜13:00 または 18:30〜19:30 推奨)/ 毎週金曜 / 月末最終金曜</span>
     </span>
     <span class="nav-arrow">はじめる <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
   </a>
@@ -133,8 +133,17 @@
     try {
       const files = await ghListDir(cfg, "counts");
       const today = todayDateStr();
-      const count = files.filter((f) => f.name.startsWith(today)).length;
-      document.getElementById("stat-today").textContent = count + " / 2";
+      const todaysFiles = files.filter((f) => f.name.startsWith(today));
+      let dailyCount = 0;
+      for (const f of todaysFiles) {
+        try {
+          const { data } = await ghGetJson(cfg, `counts/${f.name}`);
+          if ((data.frequency || "daily") === "daily") dailyCount++;
+        } catch (e) {
+          // 1件の読み込み失敗は無視して続行
+        }
+      }
+      document.getElementById("stat-today").textContent = dailyCount + " / 1";
     } catch (e) {
       document.getElementById("stat-today").textContent = "-";
     }
