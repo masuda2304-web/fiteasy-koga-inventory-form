@@ -93,9 +93,17 @@
     }
   }
 
+  // 毎月チェック = 全品目 / 毎週チェック = 「毎月」以外(毎日+毎週) / 毎日チェック = 「毎日」のみ
+  function matchesFreq(itemFreq, tab) {
+    const f = itemFreq || "daily";
+    if (tab === "monthly") return true;
+    if (tab === "weekly") return f !== "monthly";
+    return f === "daily";
+  }
+
   function renderItems() {
     const listEl = document.getElementById("list");
-    const visible = items.filter((it) => (it.frequency || "daily") === currentFreq);
+    const visible = items.filter((it) => matchesFreq(it.frequency, currentFreq));
 
     if (visible.length === 0) {
       listEl.innerHTML = `<p style="color:var(--muted)">「${FREQ_LABEL[currentFreq]}チェック」に設定されている品目はまだありません。</p>`;
