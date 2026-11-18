@@ -1,0 +1,421 @@
+<title>棚卸し・備品金額 | フィットイージー古河店 備品管理</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="style.css" />
+
+<style>
+  .shelf-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 6px 0 2px;
+  }
+  .price-row .name { flex: 1; }
+  .price-row input[type="number"] {
+    width: 110px;
+  }
+  .yen-suffix {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+  .report-total {
+    text-align: center;
+    padding: 18px 10px 8px;
+  }
+  .report-total .label {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .report-total .amount {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 34px;
+    color: var(--accent-dark);
+  }
+  .report-meta {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .shelf-amount-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    background: var(--card-bg);
+    font-size: 14px;
+  }
+  .shelf-amount-row .amt {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--accent-dark);
+  }
+  .history-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 4px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-row:last-child { border-bottom: none; }
+  details.item-detail summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--accent-dark);
+    font-weight: 700;
+    margin: 10px 0;
+  }
+  .detail-item-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    padding: 6px 4px;
+    border-bottom: 1px dashed var(--border);
+  }
+</style>
+
+<header>
+  <div class="eyebrow">FIT EASY 古河店 / 倉庫管理</div>
+  <h1>棚卸し・備品金額</h1>
+  <div class="sub">月1回の実地棚卸と、備品の合計金額をこのページで管理します</div>
+</header>
+
+<main>
+  <a class="back no-print" href="index.html">← メニューに戻る</a>
+
+  <div class="card freq-tabs" id="tabs">
+    <button type="button" class="freq-tab active" data-tab="entry">① 棚卸し入力</button>
+    <button type="button" class="freq-tab" data-tab="price">② 単価設定</button>
+    <button type="button" class="freq-tab" data-tab="report">③ 結果(備品金額)</button>
+  </div>
+
+  <!-- ① 棚卸し入力 -->
+  <div id="tab-entry">
+    <div class="notice warn">
+      月1回、全品目の実際の個数を数えて入力してください。この内容が「現在の備品金額」の計算に使われます。
+    </div>
+    <div class="card">
+      <label for="staff">担当者</label>
+      <select id="staff"><option value="">読み込み中...</option></select>
+    </div>
+    <div id="entry-list">読み込み中...</div>
+    <button class="menu-btn" id="entry-submit-btn">この内容で棚卸しを登録する</button>
+    <div id="entry-msg"></div>
+  </div>
+
+  <!-- ② 単価設定 -->
+  <div id="tab-price" style="display:none;">
+    <div class="notice warn">
+      各品目の単価(1個あたりの金額/円)を設定してください。未設定の品目は0円として計算されます。設定した単価は①③にも反映されます。
+    </div>
+    <div id="price-list">読み込み中...</div>
+    <button class="menu-btn" id="price-submit-btn">単価を保存する</button>
+    <div id="price-msg"></div>
+  </div>
+
+  <!-- ③ 結果(備品金額) -->
+  <div id="tab-report" style="display:none;">
+    <div id="report-body">読み込み中...</div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+  let cfg;
+  let items = [];
+  let currentTab = "entry";
+
+  function groupByShelf(list) {
+    const shelves = {};
+    list.forEach((it) => {
+      const shelf = it.shelf || "その他";
+      if (!shelves[shelf]) shelves[shelf] = [];
+      shelves[shelf].push(it);
+    });
+    return shelves;
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll("#tabs .freq-tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tab);
+    });
+    document.getElementById("tab-entry").style.display = tab === "entry" ? "" : "none";
+    document.getElementById("tab-price").style.display = tab === "price" ? "" : "none";
+    document.getElementById("tab-report").style.display = tab === "report" ? "" : "none";
+    if (tab === "report") loadReport();
+  }
+
+  function onQtyInput(e) {
+    const input = e.target;
+    const row = input.closest(".item-row");
+    const min = Number(input.dataset.min);
+    const val = Number(input.value);
+    if (input.value !== "" && val < min) {
+      row.classList.add("low");
+    } else {
+      row.classList.remove("low");
+    }
+  }
+
+  function renderEntryTab() {
+    const listEl = document.getElementById("entry-list");
+    if (items.length === 0) {
+      listEl.innerHTML = `<p style="color:var(--muted)">品目がまだ登録されていません。</p>`;
+      return;
+    }
+    const shelves = groupByShelf(items);
+    let html = "";
+    Object.keys(shelves).forEach((shelf) => {
+      html += `<div class="shelf-title">${shelf}</div>`;
+      shelves[shelf].forEach((it) => {
+        html += `
+          <div class="item-row" data-id="${it.id}">
+            <div class="name">${it.name} <span class="unit">(${it.unit} / 最低在庫 ${it.min_stock}${it.unit})</span></div>
+            <input type="number" min="0" step="1" data-id="${it.id}" data-min="${it.min_stock}" />
+          </div>`;
+      });
+    });
+    listEl.innerHTML = html;
+    listEl.querySelectorAll("input[type=number]").forEach((input) => {
+      input.addEventListener("input", onQtyInput);
+    });
+  }
+
+  function renderPriceTab() {
+    const listEl = document.getElementById("price-list");
+    if (items.length === 0) {
+      listEl.innerHTML = `<p style="color:var(--muted)">品目がまだ登録されていません。</p>`;
+      return;
+    }
+    const shelves = groupByShelf(items);
+    let html = "";
+    Object.keys(shelves).forEach((shelf) => {
+      html += `<div class="shelf-title">${shelf}</div>`;
+      shelves[shelf].forEach((it) => {
+        const price = typeof it.unit_price === "number" ? it.unit_price : "";
+        html += `
+          <div class="item-row price-row" data-id="${it.id}">
+            <div class="name">${it.name} <span class="unit">(${it.unit}あたり)</span></div>
+            <div>
+              <input type="number" min="0" step="1" data-id="${it.id}" value="${price}" placeholder="0" />
+              <span class="yen-suffix">円</span>
+            </div>
+          </div>`;
+      });
+    });
+    listEl.innerHTML = html;
+  }
+
+  async function init() {
+    cfg = requireConfigOrRedirect();
+    if (!cfg) return;
+
+    document.querySelectorAll("#tabs .freq-tab").forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    try {
+      const [{ data: itemsData }, { data: staffData }] = await Promise.all([
+        ghGetJson(cfg, "items.json"),
+        ghGetJson(cfg, "staff.json"),
+      ]);
+      items = itemsData.items || [];
+      renderEntryTab();
+      renderPriceTab();
+
+      const staffEl = document.getElementById("staff");
+      staffEl.innerHTML = (staffData.staff || [])
+        .map((name) => `<option value="${name}">${name}</option>`)
+        .join("");
+    } catch (e) {
+      document.getElementById("entry-list").innerHTML = `<p style="color:var(--danger)">読み込みに失敗しました: ${e.message}</p>`;
+      document.getElementById("price-list").innerHTML = `<p style="color:var(--danger)">読み込みに失敗しました: ${e.message}</p>`;
+    }
+  }
+
+  async function submitEntry() {
+    const msgEl = document.getElementById("entry-msg");
+    const staff = document.getElementById("staff").value;
+    if (!staff) {
+      msgEl.innerHTML = '<div class="notice error">担当者を選択してください。</div>';
+      return;
+    }
+
+    const inputs = document.querySelectorAll("#entry-list input[type=number]");
+    const counts = {};
+    let missing = false;
+    inputs.forEach((input) => {
+      const id = input.dataset.id;
+      if (input.value === "") {
+        missing = true;
+        return;
+      }
+      counts[id] = Number(input.value);
+    });
+
+    if (missing) {
+      msgEl.innerHTML = '<div class="notice error">すべての品目の個数を入力してください。</div>';
+      return;
+    }
+
+    const date = todayDateStr();
+    const time = nowTimeStr();
+    const fileName = `${date}_${time.replace(":", "")}_${randSuffix()}.json`;
+    const body = { date, time, staff, type: "stocktake", counts };
+
+    msgEl.innerHTML = '<div class="notice warn">送信中...</div>';
+    try {
+      await ghCreateJson(
+        cfg,
+        `stocktakes/${fileName}`,
+        body,
+        `棚卸し登録 ${date} ${time} (${staff})`
+      );
+      msgEl.innerHTML = '<div class="notice ok">棚卸しを登録しました。「③ 結果(備品金額)」タブで合計金額を確認できます。</div>';
+    } catch (e) {
+      msgEl.innerHTML = `<div class="notice error">送信に失敗しました: ${e.message}</div>`;
+    }
+  }
+
+  async function submitPrices() {
+    const msgEl = document.getElementById("price-msg");
+    if (typeof ghPutJson !== "function") {
+      msgEl.innerHTML = '<div class="notice error">保存機能(ghPutJson)が見つかりません。Claudeに連絡してください。</div>';
+      return;
+    }
+
+    const inputs = document.querySelectorAll("#price-list input[type=number]");
+    const priceMap = {};
+    inputs.forEach((input) => {
+      const id = input.dataset.id;
+      priceMap[id] = input.value === "" ? 0 : Number(input.value);
+    });
+
+    msgEl.innerHTML = '<div class="notice warn">保存中...</div>';
+    try {
+      // 念のため最新の items.json を取り直してから単価だけ更新する(他の変更を上書きしないため)
+      const { data: latestItemsData } = await ghGetJson(cfg, "items.json");
+      const updatedItems = (latestItemsData.items || []).map((it) => {
+        if (Object.prototype.hasOwnProperty.call(priceMap, it.id)) {
+          return { ...it, unit_price: priceMap[it.id] };
+        }
+        return it;
+      });
+      const newData = { ...latestItemsData, items: updatedItems };
+      await ghPutJson(cfg, "items.json", newData, "単価を更新");
+      items = updatedItems;
+      msgEl.innerHTML = '<div class="notice ok">単価を保存しました。</div>';
+    } catch (e) {
+      msgEl.innerHTML = `<div class="notice error">保存に失敗しました: ${e.message}</div>`;
+    }
+  }
+
+  function computeValuation(itemsList, counts) {
+    const byId = {};
+    itemsList.forEach((it) => { byId[it.id] = it; });
+
+    let total = 0;
+    const shelfTotals = {};
+    const detail = [];
+
+    Object.keys(counts).forEach((id) => {
+      const it = byId[id];
+      const qty = Number(counts[id]) || 0;
+      const price = it && typeof it.unit_price === "number" ? it.unit_price : 0;
+      const amount = qty * price;
+      total += amount;
+      const shelf = (it && it.shelf) || "その他";
+      shelfTotals[shelf] = (shelfTotals[shelf] || 0) + amount;
+      detail.push({
+        name: it ? it.name : id,
+        unit: it ? it.unit : "",
+        qty,
+        price,
+        amount,
+        shelf,
+      });
+    });
+
+    return { total, shelfTotals, detail };
+  }
+
+  function yen(n) {
+    return "¥" + Math.round(n).toLocaleString("ja-JP");
+  }
+
+  async function loadReport() {
+    const bodyEl = document.getElementById("report-body");
+    bodyEl.innerHTML = "読み込み中...";
+    try {
+      const files = await ghListDir(cfg, "stocktakes");
+      if (!files || files.length === 0) {
+        bodyEl.innerHTML = `<div class="card"><p style="color:var(--muted)">まだ棚卸しが登録されていません。「① 棚卸し入力」タブから登録してください。</p></div>`;
+        return;
+      }
+      const sorted = files.map((f) => f.name).sort();
+      const latestName = sorted[sorted.length - 1];
+      const { data: latest } = await ghGetJson(cfg, `stocktakes/${latestName}`);
+
+      const { data: itemsData } = await ghGetJson(cfg, "items.json");
+      const latestItems = itemsData.items || [];
+      items = latestItems;
+
+      const { total, shelfTotals, detail } = computeValuation(latestItems, latest.counts || {});
+
+      let html = `
+        <div class="card">
+          <div class="report-meta">実施日: ${latest.date || "-"} ${latest.time || ""} / 担当: ${latest.staff || "-"}</div>
+          <div class="report-total">
+            <div class="label">現在の備品合計金額</div>
+            <div class="amount">${yen(total)}</div>
+          </div>
+        </div>
+        <div class="shelf-title">棚ごとの金額</div>
+      `;
+      Object.keys(shelfTotals).forEach((shelf) => {
+        html += `<div class="shelf-amount-row"><span>${shelf}</span><span class="amt">${yen(shelfTotals[shelf])}</span></div>`;
+      });
+
+      html += `<details class="item-detail"><summary>品目ごとの内訳を見る</summary>`;
+      detail
+        .slice()
+        .sort((a, b) => b.amount - a.amount)
+        .forEach((d) => {
+          html += `<div class="detail-item-row"><span>${d.name} (${d.qty}${d.unit} × ${yen(d.price)})</span><span>${yen(d.amount)}</span></div>`;
+        });
+      html += `</details>`;
+
+      // 過去の棚卸し履歴(合計金額の推移)
+      html += `<div class="shelf-title" style="margin-top:28px;">過去の棚卸し履歴</div><div class="card">`;
+      const histRows = [];
+      for (const name of sorted.slice().reverse()) {
+        try {
+          const { data: histData } = await ghGetJson(cfg, `stocktakes/${name}`);
+          const { total: histTotal } = computeValuation(latestItems, histData.counts || {});
+          histRows.push({ date: histData.date || name, staff: histData.staff || "-", total: histTotal });
+        } catch (e) {
+          // 1件の読み込み失敗は無視
+        }
+      }
+      histRows.forEach((r) => {
+        html += `<div class="history-row"><span>${r.date}(${r.staff})</span><span>${yen(r.total)}</span></div>`;
+      });
+      html += `</div>`;
+
+      bodyEl.innerHTML = html;
+    } catch (e) {
+      bodyEl.innerHTML = `<div class="notice error">読み込みに失敗しました: ${e.message}</div>`;
+    }
+  }
+
+  document.getElementById("entry-submit-btn").addEventListener("click", submitEntry);
+  document.getElementById("price-submit-btn").addEventListener("click", submitPrices);
+  mountStatusBar();
+  init();
+</script>
