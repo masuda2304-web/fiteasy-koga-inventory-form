@@ -300,7 +300,7 @@
     msgEl.innerHTML = '<div class="notice warn">保存中...</div>';
     try {
       // 念のため最新の items.json を取り直してから単価だけ更新する(他の変更を上書きしないため)
-      const { data: latestItemsData } = await ghGetJson(cfg, "items.json");
+      const { data: latestItemsData, sha: latestSha } = await ghGetJson(cfg, "items.json");
       const updatedItems = (latestItemsData.items || []).map((it) => {
         if (Object.prototype.hasOwnProperty.call(priceMap, it.id)) {
           return { ...it, unit_price: priceMap[it.id] };
@@ -308,7 +308,7 @@
         return it;
       });
       const newData = { ...latestItemsData, items: updatedItems };
-      await ghPutJson(cfg, "items.json", newData, "単価を更新");
+      await ghPutJson(cfg, "items.json", newData, "単価を更新", latestSha);
       items = updatedItems;
       msgEl.innerHTML = '<div class="notice ok">単価を保存しました。</div>';
     } catch (e) {
